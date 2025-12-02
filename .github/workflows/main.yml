@@ -1,4 +1,4 @@
-name: Windows VM via Tailscale
+name: Windows VM with Tailscale
 
 on:
   workflow_dispatch:
@@ -8,32 +8,39 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Tailscale
+    - name: Download Tailscale installer
+      shell: powershell
       run: |
-        msiexec /i https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe /quiet
+        Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe" -OutFile "tailscale.exe"
+
+    - name: Install Tailscale
+      shell: powershell
+      run: |
+        Start-Process ".\tailscale.exe" -ArgumentList "/quiet" -Wait
 
     - name: Connect to Tailscale
       shell: powershell
       env:
         TSKEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
       run: |
-        & "C:\Program Files\Tailscale\tailscale.exe" up --authkey $env:TSKEY --hostname GitHubWindows --timeout 30s
-
-    - name: Show Tailscale IP
-      shell: powershell
-      run: |
+        & "C:\Program Files\Tailscale\tailscale.exe" up --authkey $env:TSKEY --hostname GitHubWindows --timeout 60s
         & "C:\Program Files\Tailscale\tailscale.exe" ip
 
-    - name: Enable RDP Access
+    - name: Enable RDP
       shell: powershell
       run: |
-        netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
         reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        netsh advfirewall firewall add rule name="RDP-In" dir=in action=allow protocol=TCP localport=3389
 
-    - name: Show VM Info
+    - name: Show Tailscale Status & VM Info
+      shell: powershell
       run: |
+        Write-Host "Windows VM is ready!"
+        & "C:\Program Files\Tailscale\tailscale.exe" status
         hostname
         whoami
+        ipconfig
