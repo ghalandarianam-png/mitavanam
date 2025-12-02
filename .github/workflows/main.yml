@@ -16,22 +16,24 @@ jobs:
         msiexec /i https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe /quiet
 
     - name: Connect to Tailscale
+      shell: powershell
       env:
         TSKEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
       run: |
-        "C:\Program Files\Tailscale\tailscale.exe" up --authkey %TSKEY% --hostname GitHubWindows --timeout 30s
+        & "C:\Program Files\Tailscale\tailscale.exe" up --authkey $env:TSKEY --hostname GitHubWindows --timeout 30s
 
     - name: Show Tailscale IP
+      shell: powershell
       run: |
-        "C:\Program Files\Tailscale\tailscale.exe" ip
+        & "C:\Program Files\Tailscale\tailscale.exe" ip
 
     - name: Enable RDP Access
+      shell: powershell
       run: |
         netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
-        reg add "HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+        reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
 
     - name: Show VM Info
       run: |
-        echo "Windows machine is ready!"
         hostname
         whoami
